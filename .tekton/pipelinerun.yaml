@@ -4,32 +4,12 @@ kind: PipelineRun
 metadata:
   name: demo
   annotations:
-    # The event we are targeting as seen from the webhook payload
-    # this can be an array too, i.e: [pull_request, push]
     pipelinesascode.tekton.dev/on-event: "[pull_request, push]"
-
-    # The branch or tag we are targeting (ie: main, refs/tags/*)
     pipelinesascode.tekton.dev/on-target-branch: "[main]"
-
-    # Fetch the git-clone task from hub, we are able to reference later on it
-    # with taskRef and it will automatically be embedded into our pipeline.
     pipelinesascode.tekton.dev/task: "git-clone"
-
-    # Use maven task from hub
-    #
-    # pipelinesascode.tekton.dev/task-1: "maven"
-
-    # You can add more tasks by increasing the suffix number, you can specify them as array to have multiple of them.
-    # browse the tasks you want to include from hub on https://hub.tekton.dev/
-    #
-    # pipelinesascode.tekton.dev/task-2: "[curl, buildah]"
-
-    # How many runs we want to keep.
     pipelinesascode.tekton.dev/max-keep-runs: "5"
 spec:
   params:
-    # The variable with brackets are special to Pipelines as Code
-    # They will automatically be expanded with the events from Github.
     - name: repo_url
       value: "{{ repo_url }}"
     - name: revision
@@ -57,9 +37,7 @@ spec:
             value: $(params.repo_url)
           - name: revision
             value: $(params.revision)
-      # Customize this task if you like, or just do a taskRef
-      # to one of the hub task.
-      - name: socketcan-smoketest
+      - name: test
         runAfter:
           - fetch-repository
         workspaces:
@@ -68,8 +46,9 @@ spec:
           - name: results
             workspace: results
         taskSpec:
-          results:
-                - name: recording-end-timestamp
+          params:
+            - name: revision
+              default: $(params.revision)
           workspaces:
             - name: source
             - name: results
@@ -77,25 +56,65 @@ spec:
             - image: quay.io/pwallrab/edge-device-plugin/socketcan-client:latest
               resources:
                 limits:
-                  socketcan.raballew.de/vcan: 1
+                  socketcan.raballew.de/vcan: 2
               name: canplayer
               workingDir: $(workspaces.source.path)
               script: |
                 #!/usr/bin/env bash
-                # play a recorded CAN trace on each available vcan interface
-                ip -j link show type vcan up | jq -r '.[] | .ifname' | xargs -P 0 -n 1 canplayer -I trace.log
-            - name: pause
-              image: quay.io/pwallrab/edge-device-plugin/socketcan-client:latest
-              args: ["sleep", "5"]
+                # wait until recording started
+                while true
+                do
+                  if [ -f "$(workspaces.results.path)/$(params.revision).log" ]; then
+                    break
+                  fi
+                  sleep 1
+                done
+
+                # play CAN trace on all vcan interfaces that are up
+                ip -j link show type vcan up | jq -r '.[] | .ifname' | xargs -P 0 -n 1 -I {} canplayer -v -I trace.log {}=vcan
+
+                # pause reasonably long to ensure a sent frames are recorded
+                sleep 2
           sidecars:
             - image: quay.io/pwallrab/edge-device-plugin/socketcan-client:latest
               name: candump
               workingDir: $(workspaces.results.path)
               script: |
                 #!/usr/bin/env bash
-                # listen on all available vcan interfaces that are up
-                date +%s | tee $(results.recording-end-timestamp.path)
-                ip -j link show type vcan up | jq -r '.[] | .ifname' | xargs candump -L -n 100 > $(results.recording-end-timestamp.path).log
+                while true
+                do
+                  n_interfaces=$(ip -j link show type vcan up | jq length)
+                  if [ "$n_interfaces" -gt "0" ]; then
+                    break
+                  fi
+                  sleep 1
+                done
+
+                # listen on all available interfaces and capture a predefined number of frames
+                candump -t z -n $n_frames $interfaces -L > $(params.revision).log
+      - name: analysis
+        runAfter:
+          - test
+        workspaces:
+          - name: source
+            workspace: source
+          - name: results
+            workspace: results
+        taskSpec:
+          params:
+            - name: revision
+              default: $(params.revision)
+          workspaces:
+            - name: source
+            - name: results
+          steps:
+            - image: quay.io/pwallrab/edge-device-plugin/socketcan-client:latest
+              name: analyzer
+              workingDir: $(workspaces.results.path)
+              script: |
+                #!/usr/bin/env bash
+                ls -lisa
+                cat $(params.revision).log
   workspaces:
   - name: source
     volumeClaimTemplate:
