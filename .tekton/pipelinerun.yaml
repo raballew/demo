@@ -113,7 +113,6 @@ spec:
               workingDir: $(workspaces.results.path)
               script: |
                 #!/usr/bin/env bash
-                ls -lisa
                 cat $(params.revision).log
   workspaces:
   - name: source
