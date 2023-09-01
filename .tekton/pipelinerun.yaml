@@ -91,7 +91,7 @@ spec:
                 done
 
                 # listen on all available interfaces and capture a predefined number of frames
-                candump -t z -n $n_frames $interfaces -L > $(params.revision).log
+                candump -t z any -L > $(params.revision).log
       - name: analysis
         runAfter:
           - test
