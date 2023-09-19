@@ -62,6 +62,7 @@ spec:
               script: |
                 #!/usr/bin/env bash
                 # ensure recording started
+                ip link
                 while true
                 do
                   if [ -f "$(workspaces.results.path)/$(params.revision).log" ]; then
@@ -82,6 +83,7 @@ spec:
               script: |
                 #!/usr/bin/env bash
                 # listen on all available interfaces and capture a predefined number of frames
+                ip link
                 candump -t z any -L > $(params.revision).log
       - name: analysis
         runAfter:
