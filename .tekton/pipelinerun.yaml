@@ -81,15 +81,6 @@ spec:
               workingDir: $(workspaces.results.path)
               script: |
                 #!/usr/bin/env bash
-                while true
-                do
-                  n_interfaces=$(ip -j link show type vcan up | jq length)
-                  if [ "$n_interfaces" -gt "0" ]; then
-                    break
-                  fi
-                  sleep 1
-                done
-
                 # listen on all available interfaces and capture a predefined number of frames
                 candump -t z any -L > $(params.revision).log
       - name: analysis
