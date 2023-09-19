@@ -61,7 +61,7 @@ spec:
               workingDir: $(workspaces.source.path)
               script: |
                 #!/usr/bin/env bash
-                # wait until recording started
+                # ensure recording started
                 while true
                 do
                   if [ -f "$(workspaces.results.path)/$(params.revision).log" ]; then
