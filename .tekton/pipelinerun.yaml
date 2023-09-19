@@ -61,6 +61,8 @@ spec:
               workingDir: $(workspaces.source.path)
               script: |
                 #!/usr/bin/env bash
+                set -euo pipefail
+                IFS=$'\n\t'
                 # ensure recording has been started
                 ip link show type vcan up
                 while true
@@ -79,6 +81,8 @@ spec:
               workingDir: $(workspaces.results.path)
               script: |
                 #!/usr/bin/env bash
+                set -euo pipefail
+                IFS=$'\n\t'
                 # listen on all available interfaces
                 ip link show type vcan up
                 candump -t z any -L > $(params.revision).log
