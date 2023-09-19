@@ -61,8 +61,8 @@ spec:
               workingDir: $(workspaces.source.path)
               script: |
                 #!/usr/bin/env bash
-                # ensure recording started
-                ip link
+                # ensure recording has been started
+                ip link show type vcan up
                 while true
                 do
                   if [ -f "$(workspaces.results.path)/$(params.revision).log" ]; then
@@ -71,19 +71,16 @@ spec:
                   sleep 1
                 done
 
-                # play CAN trace on all vcan interfaces that are up
+                # play CAN trace on all vcan interfaces
                 ip -j link show type vcan up | jq -r '.[] | .ifname' | xargs -P 0 -n 1 -I {} canplayer -v -I trace.log {}=vcan
-
-                # pause reasonably long to ensure a sent frames are recorded
-                sleep 2
           sidecars:
             - image: quay.io/pwallrab/edge-device-plugin/socketcan-client:latest
               name: candump
               workingDir: $(workspaces.results.path)
               script: |
                 #!/usr/bin/env bash
-                # listen on all available interfaces and capture a predefined number of frames
-                ip link
+                # listen on all available interfaces
+                ip link show type vcan up
                 candump -t z any -L > $(params.revision).log
       - name: analysis
         runAfter:
