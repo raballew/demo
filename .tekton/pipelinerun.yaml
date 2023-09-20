@@ -56,7 +56,7 @@ spec:
             - image: quay.io/pwallrab/edge-device-plugin/socketcan-client:latest
               resources:
                 limits:
-                  socketcan.raballew.de/vcan: 2
+                  socketcan.raballew.de/vcan: 1000
               name: canplayer
               workingDir: $(workspaces.source.path)
               script: |
