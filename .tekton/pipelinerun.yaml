@@ -79,6 +79,7 @@ spec:
               script: |
                 #!/usr/bin/env bash
                 # listen on all available interfaces
+                ip link show type vcan up
                 candump -t z any -L | tee $(params.revision).log
       - name: analysis
         runAfter:
