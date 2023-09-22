@@ -61,6 +61,15 @@ spec:
               workingDir: $(workspaces.source.path)
               script: |
                 #!/usr/bin/env bash
+                # listen on all available interfaces
+                ip link show type vcan up
+                candump -T 5000 -t z any -L | tee $(params.revision).log
+          sidecars:
+            - image: quay.io/pwallrab/edge-device-plugin/socketcan-client:latest
+              name: candump
+              workingDir: $(workspaces.results.path)
+              script: |
+                #!/usr/bin/env bash
                 # ensure recording has been started
                 while true
                 do
@@ -72,15 +81,6 @@ spec:
 
                 # play CAN trace on all vcan interfaces
                 ip -j link show type vcan up | jq -r '.[] | .ifname' | xargs -P 0 -I {} canplayer -v -I trace.log {}=vcan
-          sidecars:
-            - image: quay.io/pwallrab/edge-device-plugin/socketcan-client:latest
-              name: candump
-              workingDir: $(workspaces.results.path)
-              script: |
-                #!/usr/bin/env bash
-                # listen on all available interfaces
-                ip link show type vcan up
-                candump -t z any -L | tee $(params.revision).log
       - name: analysis
         runAfter:
           - test
